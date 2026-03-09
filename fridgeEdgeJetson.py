@@ -218,3 +218,36 @@ class RequestHandler(BaseHTTPRequestHandler):
 
     def log_message(self, format, *args):
         pass
+
+def main():
+    # Parse arguments for model path, port, camera index, and device
+    parser = argparse.ArgumentParser(description="Fridge Edge Server — Jetson Nano")
+    parser.add_argument("--weights", type=str, default="best.pt")
+    parser.add_argument("--port", type=int, default=5000)
+    parser.add_argument("--camera", type=int, default=0)
+    parser.add_argument("--img-size", type=int, default=640)
+    parser.add_argument("--device", default="0")
+    args = parser.parse_args()
+
+    # Initialize the YOLO detector and start the HTTP server to listen for requests from the Raspberry Pi
+    set_logging()
+    detector = FridgeDetector(args.weights, args.device, args.img_size, args.camera)
+    RequestHandler.detector = detector
+
+    server = HTTPServer(("0.0.0.0", args.port), RequestHandler)
+    print("")
+    print("=" * 55)
+    print("  JETSON NANO — EDGE SERVER RUNNING")
+    print("  Port: {}".format(args.port))
+    print("  Waiting for requests from Raspberry Pi...")
+    print("=" * 55)
+
+    # Server runs until user interrupts
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\n[INFO] Server stopped.")
+        server.server_close()
+
+if __name__ == "__main__":
+    main()
