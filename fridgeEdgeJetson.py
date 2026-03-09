@@ -151,3 +151,19 @@ class FridgeDetector:
         # Allows the annotated image to be sent as a string in the JSON response
         _, imgEncoded = cv2.imencode('.jpg', annotated, [cv2.IMWRITE_JPEG_QUALITY, 80])
         imgBase64 = base64.b64encode(imgEncoded.tobytes()).decode('utf-8')
+
+        report = {
+            "report_timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "source": "jetson_nano_webcam_{}".format(self.cameraIndex),
+            "layer": "edge",
+            "conf_threshold_used": confThres,
+            "total_items_detected": len(detections),
+            "unique_items": len(summary),
+            "inference_time_ms": round(inferenceMs, 1),
+            "nms_time_ms": round(nmsMs, 1),
+            "inventory_summary": inventorySummary,
+            "detailed_detections": detections,
+            "annotated_image_base64": imgBase64
+        }
+
+        return report, 200
