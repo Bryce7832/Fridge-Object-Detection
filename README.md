@@ -73,3 +73,25 @@ python3 -m pip install cython pyyaml --upgrade
 cd ~/fridge-detector/yolov7
 python3 fridgeEdgeJetson.py --weights best.pt --port 5000 --camera 0
 ```
+
+## Part 2: Raspberry Pi (Edge Middleware)
+
+### Hardware
+- Raspberry Pi 5
+
+### 2.1 Install Dependencies
+
+```bash
+sudo apt update
+sudo apt install python3-pip -y
+pip3 install requests python-dotenv
+```
+
+### 2.2 Create .env File
+
+```
+JETSON_IP=<YOUR_JETSON_IP>
+JETSON_PORT=5000
+PI_IP=<YOUR_PI_IP>
+PI_PORT=5001
+```
