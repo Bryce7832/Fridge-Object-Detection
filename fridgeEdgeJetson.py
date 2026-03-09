@@ -167,3 +167,54 @@ class FridgeDetector:
         }
 
         return report, 200
+    
+class RequestHandler(BaseHTTPRequestHandler):
+    # Shared detector instance set by main() before the server starts
+    detector = None
+
+    def do_GET(self):
+        # Route incoming GET requests to the appropriate handler
+        parsed = urlparse(self.path)
+        params = parse_qs(parsed.query)
+
+        if parsed.path == "/scan":
+            # Parse confidence and IoU thresholds from query parameters
+            conf = float(params.get("conf", [0.25])[0])
+            iou = float(params.get("iou", [0.45])[0])
+            print("[REQUEST] /scan from {} (conf={})".format(self.client_address[0], conf))
+
+            report, status = self.detector.captureAndDetect(confThres=conf, iouThres=iou)
+
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(json.dumps(report, indent=2).encode("utf-8"))
+
+            if status == 200:
+                print("[RESPONSE] {} items detected".format(report["total_items_detected"]))
+
+        elif parsed.path == "/health":
+            # Returns device status and model info
+            health = {
+                "status": "online",
+                "device": "jetson-nano",
+                "layer": "edge",
+                "model_classes": self.detector.classNames,
+                "num_classes": len(self.detector.classNames),
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(json.dumps(health, indent=2).encode("utf-8"))
+
+        else:
+            self.send_response(404)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "Not found. Use /scan or /health"}).encode("utf-8"))
+
+    def log_message(self, format, *args):
+        pass
