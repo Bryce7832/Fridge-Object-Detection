@@ -71,5 +71,5 @@ python3 -m pip install cython pyyaml --upgrade
 
 ```bash
 cd ~/fridge-detector/yolov7
-python3 fridge_edge_server.py --weights best.pt --port 5000 --camera 0
+python3 fridgeEdgeJetson.py --weights best.pt --port 5000 --camera 0
 ```
