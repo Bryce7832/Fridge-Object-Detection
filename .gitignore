@@ -1,7 +1,6 @@
 *.pt
 train_model.py
 fridge_edge_server.py
-fridgeEdgePi.py
 runs
 fridge-detector-firebase.json
 .env
