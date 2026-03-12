@@ -1,5 +1,5 @@
 *.pt
-fridge_fog_app.py
+train_model.py
 fridge_edge_server.py
 fridge_pi_middleware.py
 runs
