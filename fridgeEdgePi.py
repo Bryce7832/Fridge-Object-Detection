@@ -212,5 +212,29 @@ def main():
     PiRequestHandler.jetsonIp = JETSON_IP
     PiRequestHandler.jetsonPort = JETSON_PORT
 
+    server = HTTPServer(("0.0.0.0", PI_PORT), PiRequestHandler)
+    print("")
+    print("=" * 60)
+    print("  RASPBERRY PI — EDGE MIDDLEWARE RUNNING")
+    print("  Pi Port:        {}".format(PI_PORT))
+    print("  Jetson Nano:    {}:{}".format(JETSON_IP, JETSON_PORT))
+    print("  Filter:         >= {}% confidence".format(DEFAULT_MIN_CONFIDENCE))
+    print("")
+    print("  Endpoints:")
+    print("    GET /scan       — Filtered scan (Pi filters results)")
+    print("    GET /health     — Status of Pi + Jetson")
+    print("    GET /raw        — Raw unfiltered Jetson data")
+    print("")
+    print("  From PC, run:")
+    print("    curl http://<PI_IP>:{}/scan".format(PI_PORT))
+    print("=" * 60)
+
+    # Server runs until user interrupts
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\n[INFO] Pi middleware stopped.")
+        server.server_close()
+
 if __name__ == "__main__":
     main()
