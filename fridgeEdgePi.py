@@ -191,3 +191,26 @@ class PiRequestHandler(BaseHTTPRequestHandler):
                     "GET /raw": "Get raw unfiltered report from Jetson (debug)"
                 }
             }, 404)
+    #Enables browers from other sites to call API without issues
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.end_headers()
+    #Sends the data back to the brower in json format
+    def _sendJson(self, data, status):
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+        self.wfile.write(json.dumps(data, indent=2).encode("utf-8"))
+def main():
+    parser = argparse.ArgumentParser(description="Fridge Pi Middleware — Raspberry Pi")
+
+    # Point the request handler at the Jetson's address
+    PiRequestHandler.jetsonIp = JETSON_IP
+    PiRequestHandler.jetsonPort = JETSON_PORT
+
+if __name__ == "__main__":
+    main()
