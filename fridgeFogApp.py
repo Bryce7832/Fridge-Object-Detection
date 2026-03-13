@@ -153,3 +153,118 @@ def askLLM(question, inventoryItems):
 
     except Exception as e:
         return {"answer": "LLM error: {}".format(str(e)), "configured": False}
+
+# Serves the main dashboard page
+@app.route("/")
+def index():
+    return render_template("index.html", firebase_enabled=FIREBASE_ENABLED)
+
+# Triggers a scan on the Raspberry Pi and caches the resulting report
+@app.route("/api/scan")
+def apiScan():
+    try:
+        url = "http://{}:{}/scan".format(PI_IP, PI_PORT)
+        print("[SCAN] Requesting from Pi at {}".format(url))
+
+        response = httpRequests.get(url, timeout=45)
+
+        if response.status_code == 200:
+            report = response.json()
+
+            # Cache the latest report and append to history
+            global latestInventory
+            latestInventory = report
+            inventoryHistory.append(report)
+
+            # Automatically push scan results to Firebase
+            pushToFirebase(report)
+
+            return jsonify(report)
+        else:
+            return jsonify({"error": "Pi returned HTTP {}".format(response.status_code)}), 502
+
+    except httpRequests.exceptions.ConnectionError:
+        return jsonify({
+            "error": "Cannot connect to Raspberry Pi at {}:{}".format(PI_IP, PI_PORT),
+            "hint": "Make sure fridge_pi_middleware.py is running on the Pi"
+        }), 503
+
+    except httpRequests.exceptions.Timeout:
+        return jsonify({"error": "Request timed out"}), 504
+
+# Pings the Pi and Jetson to report their online/offline status
+@app.route("/api/health")
+def apiHealth():
+    piStatus = "offline"
+    jetsonStatus = "offline"
+
+    # Check Raspberry Pi health
+    try:
+        r = httpRequests.get("http://{}:{}/health".format(PI_IP, PI_PORT), timeout=10)
+        if r.status_code == 200:
+            piStatus = "online"
+    except Exception:
+        pass
+
+    # Check Jetson Nano health
+    try:
+        rJetson = httpRequests.get("http://{}:{}/health".format(JETSON_IP, JETSON_PORT), timeout=5)
+        if rJetson.status_code == 200:
+            jetsonStatus = "online"
+    except Exception:
+        pass
+
+    return jsonify({
+        "pi": piStatus,
+        "jetson": jetsonStatus,
+        "firebase": FIREBASE_ENABLED
+    })
+
+# Accepts a user question and returns an LLM-generated answer based on the current inventory
+@app.route("/api/ask", methods=["POST"])
+def apiAsk():
+    data = request.get_json()
+    question = data.get("question", "")
+
+    # Pull inventory from the most recent scan if available
+    inventoryItems = []
+    if latestInventory:
+        inventoryItems = latestInventory.get("inventory_summary", [])
+
+    result = askLLM(question, inventoryItems)
+    return jsonify(result)
+
+# Manually pushes the latest scan to Firebase on request
+@app.route("/api/firebase-push", methods=["POST"])
+def apiFirebasePush():
+    if not latestInventory:
+        return jsonify({"success": False, "error": "No scan data yet. Scan first."})
+
+    if not FIREBASE_ENABLED:
+        return jsonify({"success": False, "error": "Firebase not configured."})
+
+    success = pushToFirebase(latestInventory)
+    return jsonify({"success": success})
+
+def main():
+    # Initialise Firebase if credentials are provided in the .env file
+    if FIREBASE_CRED and FIREBASE_PROJECT:
+        initFirebase(FIREBASE_CRED, FIREBASE_PROJECT)
+
+    print("")
+    print("=" * 60)
+    print("  SMART FRIDGE — PC FOG APPLICATION")
+    print("=" * 60)
+    print("  Web UI: http://localhost:{}".format(WEB_PORT))
+    print("  Raspberry Pi: {}:{}".format(PI_IP, PI_PORT))
+    print("  Jetson Nano: {}:{}".format(JETSON_IP, JETSON_PORT))
+    print("  LLM: {}".format("Configured (Groq)" if GROQ_API_KEY else "Not configured"))
+    print("  Firebase: {}".format("Configured" if FIREBASE_ENABLED else "Not configured"))
+    print("")
+    print(" Open your browser to: http://localhost:{}".format(WEB_PORT))
+    print("=" * 60)
+
+    app.run(host="0.0.0.0", port=WEB_PORT, debug=False)
+
+if __name__ == "__main__":
+    main()
